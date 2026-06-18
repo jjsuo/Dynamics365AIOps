@@ -20,7 +20,7 @@
 > 在他**自己项目仓的根目录**执行：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_ORG/d365-ai-paradigm/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jjsuo/Dynamics365AIOps/main/install.sh | bash
 ```
 
 它会：① 把框架作为 submodule 钉进 `.daf-framework/`；② 跑 `daf sync` 生成上面那批适配器；

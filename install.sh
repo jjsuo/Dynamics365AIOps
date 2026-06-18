@@ -13,7 +13,7 @@
 # 之后更新： bash .daf-framework/install.sh --update   （或 python3 .daf-framework/bin/daf update）
 set -euo pipefail
 
-REPO_URL="${DAF_REPO_URL:-https://github.com/YOUR_ORG/d365-ai-paradigm.git}"
+REPO_URL="${DAF_REPO_URL:-https://github.com/jjsuo/Dynamics365AIOps.git}"
 VENDOR_DIR=".daf-framework"
 REF="${DAF_REF:-main}"          # 可传 tag/commit 钉死版本：DAF_REF=v0.2.0
 
