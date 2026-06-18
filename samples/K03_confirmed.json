@@ -1,0 +1,9 @@
+{
+  "_note": "示例：模拟 K02 划分 + K03 人工确认后的领域。真实使用时由 AI 划分、人工确认生成。",
+  "domains": [
+    {"name": "合同管理", "type": "custom", "entities": ["new_contract", "new_contractline"], "confidence": "confirmed"},
+    {"name": "服务工单", "type": "custom", "entities": ["new_serviceorder"], "confidence": "confirmed"},
+    {"name": "备件派工", "type": "custom", "entities": ["new_sparepart", "new_dispatch"], "confidence": "confirmed"},
+    {"name": "客户主数据", "type": "shared", "entities": ["account", "contact"], "confidence": "confirmed"}
+  ]
+}

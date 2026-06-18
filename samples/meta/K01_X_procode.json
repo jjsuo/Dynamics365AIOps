@@ -1,0 +1,5 @@
+{
+  "plugin_assemblies": [{"name": "CustA.Plugins", "version": "1.0.0.0", "isolation": "Sandbox"}],
+  "js_web_resources": [{"name": "new_contract_form.js", "type": 3}],
+  "pcf_controls": [{"name": "CustA.PriceCalculatorControl"}]
+}

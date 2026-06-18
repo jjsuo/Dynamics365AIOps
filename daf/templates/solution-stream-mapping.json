@@ -1,0 +1,11 @@
+{
+  "_note": "P04 产物：把需求拆成交付流，每个流对应一个解决方案仓。对应 VAF 的 manifest_local.json。下面是占位示例，按实际项目替换 <...>。",
+  "hub_path": "../requirements-hub",
+  "project": "<project-name>",
+  "streams": [
+    { "name": "config",      "solution": "<Prefix>_Core",        "owner": "<功能顾问>", "requirements": ["<REQ-ID>"] },
+    { "name": "procode",     "solution": "<Prefix>_Plugins",     "owner": "<技术顾问>", "requirements": ["<REQ-ID>"] },
+    { "name": "integration", "solution": "<Prefix>_Integration", "owner": "<集成>",     "requirements": ["<REQ-ID>"] },
+    { "name": "migration",   "solution": "<Prefix>_DataMig",     "owner": "<数据>",     "requirements": [] }
+  ]
+}

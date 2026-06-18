@@ -1,0 +1,9 @@
+# 复制为 config.yaml 后填写；client_secret 建议改用环境变量 DKF_CLIENT_SECRET
+dataverse:
+  resource_url: "https://yourorg.crm5.dynamics.com"   # 你的环境 URL，无尾斜杠
+  tenant_id: "00000000-0000-0000-0000-000000000000"
+  client_id: "00000000-0000-0000-0000-000000000000"   # 应用注册的 client id
+  client_secret: ""                                     # 留空，走 DKF_CLIENT_SECRET 环境变量
+
+custom_only: true     # true=只扫自定义实体(推荐起步)；false=含标准实体(量大)
+page_size: 500

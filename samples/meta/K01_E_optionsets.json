@@ -1,0 +1,5 @@
+[
+  {"name": "new_contractstatus", "is_custom": true},
+  {"name": "new_dispatchstatus", "is_custom": true},
+  {"name": "new_sparepartcategory", "is_custom": true}
+]

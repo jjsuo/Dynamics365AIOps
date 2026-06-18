@@ -1,0 +1,121 @@
+# D365 AI 规范化交付范式 — 中立流程规范（单一真相源 / single source of truth）
+#
+# 任何 agent（Claude Code / Kiro / Codex / Cursor / Copilot …）都不"理解"这个文件本身——
+# 它们只是：① 读 markdown，② 跑 shell。每个 agent 的适配器（AGENTS.md / 斜杠命令 /
+# steering）都从本文件「生成」(bin/daf sync)，所以改流程只改这里一处，不会各处漂移。
+#
+# 维护铁律（见 README「标准化边界」）：本文件 + prompts + templates 是【框架】，
+# 禁止出现任何项目特定内容（客户名/实体名/外部系统名/环境 URL）。占位用 <module>/<REQ> 等。
+
+framework:
+  name: d365-ai-paradigm
+  version: 0.2.0
+  description: 基于小米 VAF/VKF 理念的 D365 CE + Power Platform AI 规范化交付范式
+
+# 放行约定（所有 gate=human 的步骤通用）
+conventions:
+  release: "yes 放行进入下一步 · e 与 AI 继续修改当前产物"
+  commit: "每步产物自动提交，规范 feat(<PHASE>): <说明> [DAF]"
+  state_machine: [locked, unlocked, executing, pending_review, approved]
+  # 框架文件 vs 项目数据 的归属（install/update 只刷新前者，绝不碰后者）
+  framework_paths: ["process/", "dkf/dkf/", "daf/prompts/", "daf/templates/", "daf/scripts/", "collab/"]
+  project_paths: ["dkf/config.yaml", ".dkf/", "deliverables/", "code/", "solutions/"]
+
+tracks:
+
+  K:
+    name: DKF 知识库扫描（先让 AI 懂现有系统）
+    runner: cli            # 纯确定性，任何 agent 直接 bash 调，无需"理解"
+    phases:
+      - id: K01
+        name: 元数据扫描
+        run: "python -m dkf.cli scan"
+        outputs: [".dkf/meta/"]
+      - id: K02
+        name: 领域划分草稿
+        run: "python -m dkf.cli domains"
+        prompt: dkf/prompts/K02_domain_division.md
+        outputs: [".dkf/domains/K02_draft.json"]
+      - id: K03
+        name: 边界确认（人工）
+        prompt: dkf/prompts/K03_boundary_confirm.md
+        gate: human
+        outputs: [".dkf/domains/K03_confirmed.json"]
+      - id: K04
+        name: 领域知识骨架
+        run: "python -m dkf.cli k04"
+        prompt: dkf/prompts/K04_domain_knowledge.md
+        outputs: [".dkf/skills/"]
+      - id: K07
+        name: 构建系统地图索引
+        run: "python -m dkf.cli index"
+        outputs: [".dkf/index/system_map.md"]
+      - id: K09
+        name: 代码逻辑回流（S 阶段后）
+        run: "python -m dkf.cli code --code-dir code"
+        outputs: [".dkf/meta/K09_code_logic.json", ".dkf/index/K09_code_flow.md"]
+
+  P:
+    name: DAF P 阶段（需求 → Fit-Gap → FDD → SDD）
+    starter: daf/daf_starter.md
+    phases:
+      - id: P01
+        name: 需求采集
+        prompt: daf/prompts/P01_intake.md
+        inputs: ["飞书需求文档 / BRD"]
+        outputs: ["deliverables/<module>/<REQ>/requirement.md"]
+      - id: P02
+        name: 知识加载
+        note: 自动加载 .dkf/index/system_map.md + .dkf/skills/，无独立产物
+        inputs: [".dkf/index/", ".dkf/skills/"]
+      - id: P03
+        name: Fit-Gap & FDD 评审
+        prompt: daf/prompts/P03_fitgap.md
+        gate: human
+        inputs: [P01.outputs, ".dkf/index/system_map.md"]
+        outputs: ["deliverables/<module>/<REQ>/fit-gap.md", "deliverables/<module>/<REQ>/FDD.md"]
+      - id: P04
+        name: 方案拆解（配置/pro-code/集成/迁移流）
+        prompt: daf/prompts/P04_split.md
+        outputs: ["deliverables/<module>/stream-mapping.json"]
+      - id: P05
+        name: 概要设计 SDD
+        prompt: daf/prompts/P05_sdd.md
+        gate: human
+        outputs: ["deliverables/<module>/SDD.md"]
+      - id: P06
+        name: 协调中心（多流汇合门禁，仅多流时启用）
+        gate: human
+        outputs: ["deliverables/<module>/P06_gate.md"]
+
+  S:
+    name: DAF S/T 阶段（构建实现 + 测试）
+    starter: daf/s_starter.md
+    streams: [config, procode, integration, migration]
+    phases:
+      - id: S01
+        name: 详细设计（实体schema/表单/BPF/安全角色）
+        prompt: daf/prompts/S01_detail_design.md
+        outputs: ["deliverables/<module>/<REQ>/design.md"]
+      - id: S02
+        name: 任务拆解
+      - id: S03
+        name: 配置&编码实现（dev 环境）
+        prompt: daf/prompts/S03_build.md
+        outputs: ["code/<SolutionUniqueName>/", "deliverables/<module>/<REQ>/build-record.md"]
+      - id: S04
+        name: 单元/组件测试（FakeXrmEasy/flow test）
+      - id: S05
+        name: 集成计划（API/连接器/虚拟表/数据迁移映射）
+      - id: S06
+        name: 评审门禁（Solution Checker + code review）
+        prompt: daf/prompts/S06_review.md
+        gate: human
+      - id: S07
+        name: 打包部署（managed → UAT）
+        run: "bash daf/scripts/solution_export.sh"
+        gate: human
+      - id: T01
+        name: 端到端 / UAT 业务流程验收
+        prompt: daf/prompts/T01_uat.md
+        gate: human

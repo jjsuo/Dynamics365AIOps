@@ -1,0 +1,27 @@
+# ── 项目数据（按具体环境/需求生成，不进框架仓）──
+dkf/config.yaml
+config.yaml
+.dkf/
+deliverables/
+code/
+solutions/
+req.txt
+req2.txt
+
+# ── 本地需求/草稿原文 ──
+*.local.md
+
+# ── Python ──
+.venv/
+*.pyc
+__pycache__/
+*.egg-info/
+
+# ── 离线验证产物 ──
+samples/output/
+
+# ── 本地工具配置 ──
+.claude/settings.local.json
+
+# ── 系统 ──
+.DS_Store

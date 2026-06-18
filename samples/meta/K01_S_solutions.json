@@ -1,0 +1,5 @@
+[
+  {"uniquename": "CustA_Core", "friendly": "客户A核心配置", "version": "1.0.0.0", "managed": false},
+  {"uniquename": "CustA_Plugins", "friendly": "客户A插件", "version": "1.0.0.0", "managed": false},
+  {"uniquename": "CustA_Integration", "friendly": "客户A集成", "version": "1.0.0.0", "managed": false}
+]

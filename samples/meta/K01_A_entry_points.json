@@ -1,0 +1,13 @@
+{
+  "plugin_steps": [
+    {"name": "ContractValidatePlugin", "message": "Update", "entity": "new_contract", "stage": "PreOperation", "mode": "同步", "state": "激活"},
+    {"name": "ContractExpiryFlagPlugin", "message": "Update", "entity": "new_contract", "stage": "PostOperation", "mode": "异步", "state": "激活"},
+    {"name": "ServiceOrderRollupPlugin", "message": "Create", "entity": "new_serviceorder", "stage": "PostOperation", "mode": "异步", "state": "激活"},
+    {"name": "DispatchAutoAssignPlugin", "message": "Create", "entity": "new_dispatch", "stage": "PreOperation", "mode": "同步", "state": "激活"},
+    {"name": "SparePartStockCheckPlugin", "message": "Update", "entity": "new_sparepart", "stage": "PreValidation", "mode": "同步", "state": "激活"}
+  ],
+  "custom_apis": [
+    {"uniquename": "new_RecalcContractPrice", "name": "重算合同金额", "bound_entity": "new_contract", "is_function": false},
+    {"uniquename": "new_AssignDispatch", "name": "派工分配", "bound_entity": "new_dispatch", "is_function": false}
+  ]
+}

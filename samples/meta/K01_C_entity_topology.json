@@ -1,0 +1,18 @@
+{
+  "entities": [
+    {"logicalname": "account", "is_custom": false, "ownership": "UserOwned", "primary_name": "name"},
+    {"logicalname": "contact", "is_custom": false, "ownership": "UserOwned", "primary_name": "fullname"},
+    {"logicalname": "new_contract", "is_custom": true, "ownership": "UserOwned", "primary_name": "new_name"},
+    {"logicalname": "new_contractline", "is_custom": true, "ownership": "UserOwned", "primary_name": "new_name"},
+    {"logicalname": "new_serviceorder", "is_custom": true, "ownership": "UserOwned", "primary_name": "new_name"},
+    {"logicalname": "new_sparepart", "is_custom": true, "ownership": "OrganizationOwned", "primary_name": "new_name"},
+    {"logicalname": "new_dispatch", "is_custom": true, "ownership": "UserOwned", "primary_name": "new_name"}
+  ],
+  "relationships": [
+    {"schema": "new_contract_contractline", "referencing": "new_contractline", "referenced": "new_contract", "type": "OneToManyRelationship", "is_custom": true},
+    {"schema": "account_new_contract", "referencing": "new_contract", "referenced": "account", "type": "OneToManyRelationship", "is_custom": true},
+    {"schema": "new_contract_serviceorder", "referencing": "new_serviceorder", "referenced": "new_contract", "type": "OneToManyRelationship", "is_custom": true},
+    {"schema": "new_serviceorder_dispatch", "referencing": "new_dispatch", "referenced": "new_serviceorder", "type": "OneToManyRelationship", "is_custom": true},
+    {"schema": "new_dispatch_sparepart", "referencing": "new_dispatch", "referenced": "new_sparepart", "type": "OneToManyRelationship", "is_custom": true}
+  ]
+}

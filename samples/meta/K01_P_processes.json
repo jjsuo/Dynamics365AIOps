@@ -1,0 +1,7 @@
+[
+  {"name": "合同审批", "category": "业务流程(BPF)", "entity": "new_contract", "state": "激活"},
+  {"name": "合同到期提醒", "category": "Power Automate(modern flow)", "entity": "new_contract", "state": "激活"},
+  {"name": "工单自动派工", "category": "Power Automate(modern flow)", "entity": "new_serviceorder", "state": "激活"},
+  {"name": "备件库存预警", "category": "业务规则(business rule)", "entity": "new_sparepart", "state": "激活"},
+  {"name": "派工状态流转", "category": "经典工作流(classic workflow)", "entity": "new_dispatch", "state": "激活"}
+]

@@ -1,0 +1,216 @@
+#!/usr/bin/env python3
+"""daf — D365 AI 交付范式的中立编排驱动。
+
+任何 agent 都只需会跑 shell 就能用本范式：
+  daf list                列出所有 track / phase（菜单，从 manifest 生成）
+  daf show <PHASE>        打印某步该做什么（输入/产物/门控 + prompt 内容或 run 命令）
+  daf sync                从 manifest 生成各 agent 适配器（AGENTS.md / 斜杠命令 / Kiro steering）
+  daf version             打印框架版本
+  daf update              （别人的项目里）拉取最新框架副本 + 重新 sync
+
+设计：本脚本只读 manifest + prompt 文件，零项目知识。流程逻辑在 manifest 里，
+判断逻辑在 prompt 里，机械步骤在 run 命令里。换任何 agent 都成立。
+"""
+from __future__ import annotations
+
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except ImportError:
+    sys.exit("缺少 PyYAML：pip install PyYAML（DKF 也需要它）")
+
+# 框架根 = bin/ 的上一级。用 abspath 而非 resolve，避免 vendored 软链被解析成真实绝对路径。
+FRAMEWORK_ROOT = Path(os.path.abspath(__file__)).parent.parent
+MANIFEST = FRAMEWORK_ROOT / "process" / "manifest.yaml"
+
+
+def load() -> dict:
+    if not MANIFEST.exists():
+        sys.exit(f"找不到 manifest：{MANIFEST}")
+    return yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
+
+
+def project_root() -> Path:
+    """消费方的项目根。框架被 vendored 时，项目根是仓库根；自开发时即框架根。"""
+    try:
+        top = subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=os.getcwd(), text=True, stderr=subprocess.DEVNULL).strip()
+        return Path(top)
+    except Exception:
+        return Path(os.getcwd())
+
+
+def fw_prefix(proj: Path) -> str:
+    """框架根相对项目根的路径前缀（vendored 时形如 .daf-framework/）。"""
+    try:
+        rel = os.path.relpath(FRAMEWORK_ROOT, proj)
+        return "" if rel == "." else rel.rstrip("/") + "/"
+    except ValueError:
+        return str(FRAMEWORK_ROOT) + "/"
+
+
+# ---------------------------------------------------------------- 命令
+
+def cmd_version(m: dict):
+    fw = m["framework"]
+    print(f"{fw['name']} v{fw['version']}")
+
+
+def cmd_list(m: dict):
+    fw = m["framework"]
+    print(f"\n{fw['name']} v{fw['version']} — {fw['description']}\n")
+    for tk, track in m["tracks"].items():
+        print(f"━━ [{tk}] {track['name']}")
+        for ph in track["phases"]:
+            gate = "  ← 强制人工放行" if ph.get("gate") == "human" else ""
+            kind = "·CLI" if ph.get("run") else ("·prompt" if ph.get("prompt") else "")
+            print(f"   {ph['id']:5} {ph['name']}{kind}{gate}")
+        print()
+    print("约定：", m["conventions"]["release"])
+
+
+def cmd_show(m: dict, phase_id: str):
+    phase = track = None
+    for track in m["tracks"].values():
+        for ph in track["phases"]:
+            if ph["id"].lower() == phase_id.lower():
+                phase = ph
+                break
+        if phase:
+            break
+    if not phase:
+        sys.exit(f"未知步骤：{phase_id}（用 `daf list` 看全部）")
+
+    print(f"\n=== {phase['id']} · {phase['name']} ===")
+    if phase.get("note"):
+        print(f"说明: {phase['note']}")
+    for k in ("inputs", "outputs"):
+        if phase.get(k):
+            print(f"{'输入' if k=='inputs' else '产物'}: {', '.join(phase[k])}")
+    if phase.get("gate") == "human":
+        print(f"门控: 人工放行（{m['conventions']['release']}）")
+    if phase.get("run"):
+        print(f"\n执行命令:\n  {phase['run']}")
+    if phase.get("prompt"):
+        p = FRAMEWORK_ROOT / phase["prompt"]
+        print(f"\nprompt 文件: {phase['prompt']}")
+        if p.exists():
+            print("─" * 60)
+            print(p.read_text(encoding="utf-8"))
+        else:
+            print("  ⚠️ 该 prompt 文件尚未创建")
+
+
+def cmd_sync(m: dict):
+    """从 manifest 生成各 agent 适配器到项目根。改流程只改 manifest，sync 一下全更新。"""
+    proj = project_root()
+    pre = fw_prefix(proj)
+    fw = m["framework"]
+    daf_cmd = f"python3 {pre}bin/daf"
+    header = (f"<!-- 本文件由 `daf sync` 从 {pre}process/manifest.yaml 生成，"
+              f"勿手改；改流程改 manifest。framework v{fw['version']} -->\n\n")
+
+    body = f"""# {fw['name']} — AI 交付范式入口
+
+本仓采用 **D365 AI 规范化交付范式**（DKF 知识库 + DAF 交付流程）。任何 AI agent 按下述方式执行，行为一致。
+
+## 你（agent）的工作方式
+1. 流程的单一真相源是 `{pre}process/manifest.yaml`。**不要凭记忆推断流程**，用命令查：
+   - `{daf_cmd} list` — 看所有 track（K 知识 / P 设计 / S·T 构建测试）与步骤
+   - `{daf_cmd} show <步骤ID>` — 看某步的输入/产物/门控，以及该步的 prompt 全文或要跑的命令
+2. **K track（DKF）是确定性 CLI**，直接按 `show` 给的 `run` 命令执行即可。
+3. **P / S track（DAF）是判断类**，按 `show` 打印的 prompt 执行，产出落到 `deliverables/` 或 `code/`。
+4. **门控步骤**（标 `人工放行`）：产出后停下等用户 `yes` 放行 / `e` 继续改，不要自行越过。
+5. 每步产物提交：`{m['conventions']['commit']}`
+
+## 边界（重要）
+- 框架文件（{', '.join(m['conventions']['framework_paths'])}）只读地遵循，不要把客户名/实体名/外部系统名写进去。
+- 项目产物只写到：{', '.join(m['conventions']['project_paths'])}。
+
+## 更新框架
+本范式有更新时：`{daf_cmd} update`（只刷新框架文件，不动你的项目数据）。
+"""
+
+    targets = {
+        proj / "AGENTS.md": header + body,
+        proj / ".claude" / "commands" / "daf.md": _claude_cmd(daf_cmd, m),
+        proj / ".kiro" / "steering" / "daf.md": header + body,
+        proj / ".github" / "copilot-instructions.md": header + body,
+    }
+    for path, content in targets.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+        print(f"  ✓ 生成 {path.relative_to(proj)}")
+
+    # CLAUDE.md 用 import 复用 AGENTS.md，避免两份漂移
+    claude_md = proj / "CLAUDE.md"
+    import_line = "@AGENTS.md"
+    if not claude_md.exists():
+        claude_md.write_text(f"{import_line}\n", encoding="utf-8")
+        print("  ✓ 生成 CLAUDE.md（import AGENTS.md）")
+    elif import_line not in claude_md.read_text(encoding="utf-8"):
+        with claude_md.open("a", encoding="utf-8") as f:
+            f.write(f"\n{import_line}\n")
+        print("  ✓ CLAUDE.md 追加 @AGENTS.md")
+    print(f"\n已为 framework v{m['framework']['version']} 生成适配器。")
+
+
+def _claude_cmd(daf_cmd: str, m: dict) -> str:
+    return f"""---
+description: 按 D365 AI 交付范式执行下一步（DKF/DAF）
+---
+
+你正在一个采用 D365 AI 交付范式的仓库里。流程真相源是 manifest，**用命令查，别凭记忆**：
+
+1. 先 `{daf_cmd} list` 了解当前可做的 track 与步骤。
+2. 用户指定步骤（或你判断的下一步）→ `{daf_cmd} show <步骤ID>` 拿到该步的输入/产物/门控与 prompt/命令。
+3. 严格按 show 的内容执行：K track 跑 run 命令；P/S track 按 prompt 产出到 deliverables/ 或 code/。
+4. 门控步骤产出后停下等用户 `yes`/`e`，别自行越过。
+5. 提交：{m['conventions']['commit']}
+
+用户参数：$ARGUMENTS（可能是步骤ID，如 P03；为空就先 list 再问用户从哪步开始）。
+"""
+
+
+def cmd_update(m: dict):
+    """消费方更新：git pull 框架副本 + 重新生成适配器。只动框架，不动项目数据。"""
+    if not (FRAMEWORK_ROOT / ".git").exists():
+        sys.exit("框架不是独立 git 副本，无法 update。\n"
+                 "若是 submodule：git submodule update --remote .daf-framework && "
+                 f"python3 {FRAMEWORK_ROOT}/bin/daf sync")
+    print(f"[update] 拉取框架 {FRAMEWORK_ROOT} ...")
+    subprocess.run(["git", "-C", str(FRAMEWORK_ROOT), "pull", "--ff-only"], check=True)
+    new = load()
+    print(f"[update] 框架现为 v{new['framework']['version']}，重新生成适配器 ...")
+    cmd_sync(new)
+
+
+def main():
+    args = sys.argv[1:]
+    if not args:
+        args = ["list"]
+    m = load()
+    cmd = args[0]
+    if cmd == "version":
+        cmd_version(m)
+    elif cmd == "list":
+        cmd_list(m)
+    elif cmd == "show":
+        if len(args) < 2:
+            sys.exit("用法: daf show <步骤ID>")
+        cmd_show(m, args[1])
+    elif cmd == "sync":
+        cmd_sync(m)
+    elif cmd == "update":
+        cmd_update(m)
+    else:
+        sys.exit(f"未知命令: {cmd}\n{__doc__}")
+
+
+if __name__ == "__main__":
+    main()

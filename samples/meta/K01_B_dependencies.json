@@ -1,0 +1,4 @@
+{"connection_references": [
+  {"name": "SharePoint连接", "logicalname": "new_sharepoint_conn", "connector": "shared_sharepointonline"},
+  {"name": "邮件连接", "logicalname": "new_office365_conn", "connector": "shared_office365"}
+]}
