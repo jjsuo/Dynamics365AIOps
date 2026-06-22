@@ -10,7 +10,7 @@
 - `.dkf/meta/K01_P_processes.json`（流程）
 - 领域专家清单（人工提供：本项目有哪些业务模块）
 
-## 划分粒度（参考 VKF：分 5 个粒度，避免一刀切）
+## 划分粒度（分 5 个粒度，避免一刀切）
 1. 标准模块域：Sales / Customer Service / Field Service / Marketing
 2. 自定义业务域：按客户业务（如"合同管理""备件""派工"）
 3. 共享/主数据域：account、contact、product 等被多域引用的

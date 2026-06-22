@@ -1,6 +1,6 @@
 # D365 AI 规范化交付范式 — 落地实现
 
-基于小米 VAF/VKF/eight-claw 理念，为 D365 CE + Power Platform 小团队做的 AI 规范化交付范式。
+为 D365 CE + Power Platform 小团队做的 AI 规范化交付范式：知识库 + 交付流程 + 协作三层。
 
 ## 三层
 - **dkf/** — 第一层 DKF：知识库扫描器。扫 Dataverse 元数据 → 可检索"系统地图"，让 AI 先懂现有系统。

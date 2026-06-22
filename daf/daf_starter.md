@@ -1,6 +1,6 @@
 # @daf_starter — DAF P 阶段统一入口
 
-> 对齐 VAF 的 `@vaf_starter.md`。在你的 AI 编码 agent（Claude Code / Copilot）里执行本文件，
+> 在你的 AI 编码 agent（Claude Code / Copilot / Codex 等）里执行本文件，
 > 它会渲染菜单、做阶段门控、在每个放行点等你决策。
 >
 > **阶段门控**：P01 未放行，P02 锁定；依此类推。多流并行后在 P06 汇合。
@@ -34,7 +34,7 @@
 | P05 | `prompts/P05_sdd.md` | FDD + 拆解结果 | `SDD/<module>.md`（数据/安全/集成/环境） |
 | P06 | （门禁脚本） | 各流就绪状态 | `P06_gate.md`（汇合评审记录） |
 
-## 产物落地约定（v2，按需求分类归档）
+## 产物落地约定（按需求分类归档）
 每条需求的产物**集中放到自己的目录**，新需求 = 新文件夹，**只增不覆盖老的**：
 ```
 deliverables/<module>/
@@ -74,7 +74,7 @@ deliverables/<module>/
   ```
 - 项目开始即固定 chat_id，避免门禁时无处可发。
 
-## 状态机（沿用 VAF）
+## 状态机
 `locked🔒 → unlocked → executing → pending_review → approved`
 
 ## 环境要求

@@ -27,7 +27,7 @@
 | S07 | `scripts/solution_export.sh`（pac 不可用时走 Web API ExportSolution） | managed solution（导出 + 源码化进 Git） |
 | T01 | `prompts/T01_uat.md` | 测试报告 + 缺陷回流 |
 
-## 约定（v2，对齐 daf_starter）
+## 约定（与 daf_starter 一致）
 - **代码**：一律放仓库根 `code/<SolutionUniqueName>/`，遵循 `templates/code-standards.md`（可后期改）。
 - **产物**：S 阶段记录放 `deliverables/<module>/<REQ>/build-record.md`。
 - **Mac 环境**：pac 崩 → solution 导出/导入/组件操作走 Dataverse Web API；插件 net462 跨平台编译+强名签名+Web API 注册，见 `MAC-NOTES.md`、`code/README-Mac插件工作流.md`。
