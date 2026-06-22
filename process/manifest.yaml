@@ -9,7 +9,7 @@
 
 framework:
   name: d365-ai-paradigm
-  version: 0.2.0
+  version: 0.3.0
   description: 基于小米 VAF/VKF 理念的 D365 CE + Power Platform AI 规范化交付范式
 
 # 放行约定（所有 gate=human 的步骤通用）

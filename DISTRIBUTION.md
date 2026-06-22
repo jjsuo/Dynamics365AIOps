@@ -23,11 +23,27 @@
 curl -fsSL https://raw.githubusercontent.com/jjsuo/Dynamics365AIOps/main/install.sh | bash
 ```
 
-它会：① 把框架作为 submodule 钉进 `.daf-framework/`；② 跑 `daf sync` 生成上面那批适配器；
-③ 写 `daf.lock`。完事后，他无论用 Claude Code / Kiro / Codex / Cursor / Copilot，
-agent 读到各自的入口文件，行为都一致：`daf list` → `daf show <步骤>` → 按步交付。
+它会：① 把框架作为 submodule 钉进 `.daf-framework/`；② 跑 `daf sync` 生成适配器
++ 跨平台启动器（`daf` / `daf.cmd`）；③ 写 `daf.lock`。
 
-钉死某个版本（推荐生产用）：`DAF_REF=v0.2.0 bash install.sh`。
+钉死某个版本（推荐生产用）：`DAF_REF=v0.3.0 bash install.sh`。
+
+## 新电脑上的完整流程（DKF 先就位，之后全程 DAF）
+
+装完后，**`daf` 不是系统命令**，是项目根的启动器：Windows cmd 直接 `daf …`，macOS/Linux/git-bash 用 `./daf …`（self-dev 仓用 `python3 bin/daf …`）。
+
+```bash
+daf doctor            # 自检：python / dkf 配置 / 知识库 是否就位，告诉你下一步
+# 1) 让 DKF 知识库就位（每台新机器/换环境做一次）
+cp .daf-framework/dkf/config.example.yaml dkf/config.yaml   # 填环境 URL/tenant/client
+export DKF_CLIENT_SECRET='...'                              # 凭据走环境变量
+daf knowledge         # 自动跑 K01 扫描 → K02 划域 → K04 骨架 → K07 索引 → 写 .dkf/
+# 2) 之后每次只跟 agent 说需求即可
+```
+
+第 2 步**不用你记命令**：Codex 自动读 `AGENTS.md`、Claude Code 读 `CLAUDE.md`，里面写死了
+「任何交付/需求/构建请求都走 DAF：先 `daf doctor`/`daf list`，再 `daf show <步骤>` 按步执行，门控停」。
+所以你直接说"按 DAF 帮我做这条需求"，agent 就会自己 `daf list` → 从 P01 走起。
 
 ## 给别人的「快速更新」（一行）
 

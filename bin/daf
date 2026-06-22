@@ -2,9 +2,11 @@
 """daf — D365 AI 交付范式的中立编排驱动。
 
 任何 agent 都只需会跑 shell 就能用本范式：
+  daf doctor              自检：python / dkf 配置 / 知识库是否就位，并指出下一步
+  daf knowledge           DKF 知识库更新：自动跑 scan→domains→k04→index（产物写项目 .dkf/）
   daf list                列出所有 track / phase（菜单，从 manifest 生成）
   daf show <PHASE>        打印某步该做什么（输入/产物/门控 + prompt 内容或 run 命令）
-  daf sync                从 manifest 生成各 agent 适配器（AGENTS.md / 斜杠命令 / Kiro steering）
+  daf sync                从 manifest 生成各 agent 适配器 + 跨平台 daf/daf.cmd 启动器
   daf version             打印框架版本
   daf update              （别人的项目里）拉取最新框架副本 + 重新 sync
 
@@ -106,39 +108,72 @@ def cmd_show(m: dict, phase_id: str):
             print("  ⚠️ 该 prompt 文件尚未创建")
 
 
+def _write_launchers(proj: Path, pre: str):
+    """生成跨平台启动器，让命令统一为 `daf`(Windows cmd) / `./daf`(mac/Linux/git-bash)。"""
+    nix_target = f"{pre}bin/daf"
+    win_target = (pre + "bin/daf").replace("/", "\\")
+    (proj / "daf.cmd").write_text(
+        "@echo off\r\n"
+        f'python "%~dp0{win_target}" %*\r\n', encoding="utf-8")
+    nix = proj / "daf"
+    if nix.is_dir():
+        # 仅 self-dev 仓会撞上自带的 daf/ 目录；该模式直接用 `python3 bin/daf`
+        print("  ✓ 生成 daf.cmd 启动器（项目根已有 daf/ 目录，跳过 ./daf；self-dev 用 python3 bin/daf）")
+        return
+    nix.write_text(
+        "#!/usr/bin/env bash\n"
+        f'exec "${{PYTHON:-python3}}" "$(dirname "$0")/{nix_target}" "$@"\n',
+        encoding="utf-8")
+    try:
+        nix.chmod(0o755)
+    except OSError:
+        pass
+    print("  ✓ 生成 daf / daf.cmd 启动器（Windows 用 `daf`，mac/Linux 用 `./daf`）")
+
+
 def cmd_sync(m: dict):
-    """从 manifest 生成各 agent 适配器到项目根。改流程只改 manifest，sync 一下全更新。"""
+    """从 manifest 生成各 agent 适配器 + 跨平台启动器到项目根。改流程只改 manifest。"""
     proj = project_root()
     pre = fw_prefix(proj)
     fw = m["framework"]
-    daf_cmd = f"python3 {pre}bin/daf"
+    _write_launchers(proj, pre)
+
     header = (f"<!-- 本文件由 `daf sync` 从 {pre}process/manifest.yaml 生成，"
               f"勿手改；改流程改 manifest。framework v{fw['version']} -->\n\n")
 
     body = f"""# {fw['name']} — AI 交付范式入口
 
-本仓采用 **D365 AI 规范化交付范式**（DKF 知识库 + DAF 交付流程）。任何 AI agent 按下述方式执行，行为一致。
+本仓采用 **D365 AI 规范化交付范式**（DKF 知识库 + DAF 交付流程）。
+**凡是交付 / 需求 / 构建 / 分析类的请求，都必须走 DAF 流程，不要绕过。** 任何 AI agent 按下述执行，行为一致。
 
-## 你（agent）的工作方式
-1. 流程的单一真相源是 `{pre}process/manifest.yaml`。**不要凭记忆推断流程**，用命令查：
-   - `{daf_cmd} list` — 看所有 track（K 知识 / P 设计 / S·T 构建测试）与步骤
-   - `{daf_cmd} show <步骤ID>` — 看某步的输入/产物/门控，以及该步的 prompt 全文或要跑的命令
-2. **K track（DKF）是确定性 CLI**，直接按 `show` 给的 `run` 命令执行即可。
-3. **P / S track（DAF）是判断类**，按 `show` 打印的 prompt 执行，产出落到 `deliverables/` 或 `code/`。
-4. **门控步骤**（标 `人工放行`）：产出后停下等用户 `yes` 放行 / `e` 继续改，不要自行越过。
-5. 每步产物提交：`{m['conventions']['commit']}`
+> 运行约定：下文 `daf` = 项目根的启动器。Windows cmd 直接 `daf …`；macOS/Linux/git-bash 用 `./daf …`。
+
+## 0. 首次 / 新机器先做（让 DKF 知识库就位）
+DAF 的 P 阶段依赖 DKF 知识。开工前先确认 `.dkf/index/system_map.md` 是否存在（或跑 `daf doctor` 自检）：
+- **不存在** → 先建知识库：从 `{pre}dkf/config.example.yaml` 复制出 `dkf/config.yaml` 填环境与凭据，再 `daf knowledge`（自动跑 K01 扫描 → K02 划域 → K04 骨架 → K07 索引）。
+- **已存在** → 直接进下一节。
+
+## 1. 每次请求怎么走
+1. 流程真相源是 `{pre}process/manifest.yaml`，**别凭记忆**，用命令查：
+   - `daf list` — 看 track（K 知识 / P 设计 / S·T 构建测试）与步骤
+   - `daf show <步骤ID>` — 某步的输入/产物/门控 + prompt 全文或要跑的命令
+2. 判断当前该到哪步（没有知识库就先回第 0 步），从该步起按 `show` 执行：
+   - **K track** = 确定性 CLI，直接跑 `run` 命令
+   - **P / S track** = 判断类，按 prompt 产出到 `deliverables/` 或 `code/`
+3. **门控步骤**（标 `人工放行`）：产出后停下等用户 `yes` 放行 / `e` 改，**不要自行越过**。
+4. 每步产物提交：`{m['conventions']['commit']}`
 
 ## 边界（重要）
 - 框架文件（{', '.join(m['conventions']['framework_paths'])}）只读地遵循，不要把客户名/实体名/外部系统名写进去。
 - 项目产物只写到：{', '.join(m['conventions']['project_paths'])}。
 
 ## 更新框架
-本范式有更新时：`{daf_cmd} update`（只刷新框架文件，不动你的项目数据）。
+`daf update`（git pull 框架 + 重新生成适配器，只刷新框架文件，不动你的项目数据）。
 """
 
     targets = {
         proj / "AGENTS.md": header + body,
-        proj / ".claude" / "commands" / "daf.md": _claude_cmd(daf_cmd, m),
+        proj / ".claude" / "commands" / "daf.md": _claude_cmd(m),
         proj / ".kiro" / "steering" / "daf.md": header + body,
         proj / ".github" / "copilot-instructions.md": header + body,
     }
@@ -160,21 +195,62 @@ def cmd_sync(m: dict):
     print(f"\n已为 framework v{m['framework']['version']} 生成适配器。")
 
 
-def _claude_cmd(daf_cmd: str, m: dict) -> str:
+def _claude_cmd(m: dict) -> str:
     return f"""---
 description: 按 D365 AI 交付范式执行下一步（DKF/DAF）
 ---
 
-你正在一个采用 D365 AI 交付范式的仓库里。流程真相源是 manifest，**用命令查，别凭记忆**：
+你在一个采用 D365 AI 交付范式的仓库里。**任何交付/需求/构建/分析请求都走 DAF**。
+`daf` = 项目根启动器（Windows `daf`，mac/Linux `./daf`）。流程真相源是 manifest，**用命令查，别凭记忆**：
 
-1. 先 `{daf_cmd} list` 了解当前可做的 track 与步骤。
-2. 用户指定步骤（或你判断的下一步）→ `{daf_cmd} show <步骤ID>` 拿到该步的输入/产物/门控与 prompt/命令。
-3. 严格按 show 的内容执行：K track 跑 run 命令；P/S track 按 prompt 产出到 deliverables/ 或 code/。
+0. 先确认知识库就位：`daf doctor`。缺 `.dkf/` → 引导用户配 `dkf/config.yaml` 后 `daf knowledge`。
+1. `daf list` 了解 track 与步骤。
+2. 用户指定步骤（或你判断的下一步）→ `daf show <步骤ID>` 拿输入/产物/门控与 prompt/命令。
+3. 严格按 show 执行：K track 跑 run 命令；P/S track 按 prompt 产出到 deliverables/ 或 code/。
 4. 门控步骤产出后停下等用户 `yes`/`e`，别自行越过。
 5. 提交：{m['conventions']['commit']}
 
-用户参数：$ARGUMENTS（可能是步骤ID，如 P03；为空就先 list 再问用户从哪步开始）。
+用户参数：$ARGUMENTS（可能是步骤ID，如 P03；为空就先 doctor + list 再问用户从哪步开始）。
 """
+
+
+def cmd_knowledge(m: dict):
+    """DKF 知识库更新：按 K track 自动跑 scan→domains→k04→index，产物写到项目 .dkf/。"""
+    proj = project_root()
+    out = proj / ".dkf"
+    config = next((c for c in (proj / "dkf" / "config.yaml",
+                               FRAMEWORK_ROOT / "dkf" / "config.yaml") if c.exists()), None)
+    if not config:
+        sys.exit(f"缺少 dkf 配置。先 `cp {FRAMEWORK_ROOT}/dkf/config.example.yaml "
+                 f"{proj}/dkf/config.yaml`，填环境/凭据(或导出 DKF_CLIENT_SECRET)后重试。")
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(FRAMEWORK_ROOT / "dkf") + os.pathsep + env.get("PYTHONPATH", "")
+    steps = [run.split()[3] for ph in m["tracks"]["K"]["phases"]
+             if (run := ph.get("run", "")) and ph.get("gate") != "human" and ph["id"] != "K09"]
+    print(f"[knowledge] 配置 {config} → 输出 {out}")
+    for sub in steps:
+        print(f"  → dkf {sub}")
+        subprocess.run([sys.executable, "-m", "dkf.cli", sub,
+                        "--config", str(config), "--out", str(out)],
+                       cwd=str(proj), env=env, check=True)
+    print("[knowledge] 完成。K03 边界确认是人工步，需要时 `daf show K03` 看指引。")
+
+
+def cmd_doctor(m: dict):
+    """自检：python / 配置 / 知识库是否就位，并指出下一步。"""
+    proj = project_root()
+    print(f"项目根: {proj}")
+    print(f"框架:   {FRAMEWORK_ROOT}  (v{m['framework']['version']})")
+    print("  ✓ python + PyYAML")
+    cfg = proj / "dkf" / "config.yaml"
+    print(("  ✓ " if cfg.exists() else "  ✗ ") + f"dkf 配置 {cfg}"
+          + ("" if cfg.exists() else "  → 复制 dkf/config.example.yaml 并填凭据"))
+    idx = proj / ".dkf" / "index" / "system_map.md"
+    has_idx = idx.exists()
+    print(("  ✓ " if has_idx else "  ✗ ") + f"DKF 知识库 {idx}"
+          + ("" if has_idx else "  → daf knowledge"))
+    print("\n下一步：" + ("知识库已就位，让 agent 按 DAF 走（daf list）。"
+                          if has_idx else "先 daf knowledge 建知识库，再走 DAF。"))
 
 
 def cmd_update(m: dict):
@@ -206,6 +282,10 @@ def main():
         cmd_show(m, args[1])
     elif cmd == "sync":
         cmd_sync(m)
+    elif cmd in ("knowledge", "dkf"):
+        cmd_knowledge(m)
+    elif cmd == "doctor":
+        cmd_doctor(m)
     elif cmd == "update":
         cmd_update(m)
     else:
